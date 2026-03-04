@@ -19,3 +19,8 @@ def log_expense():
     data = request.json
     result = db.expenses.insert_one(data)
     return jsonify({"id": str(result.inserted_id)}), 201
+
+@expenses_bp.route('/<expense_id>', methods=['DELETE'])
+def delete_expense(expense_id):
+    db.expenses.delete_one({"_id": ObjectId(expense_id)})
+    return jsonify({"status": "deleted"}), 200

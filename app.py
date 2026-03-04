@@ -9,6 +9,8 @@ from routes.bookings import bookings_bp
 from routes.expenses import expenses_bp
 from routes.auth import auth_bp
 from routes.upload import upload_bp
+from routes.pricing import pricing_bp
+from routes.notifications import notifications_bp
 import firebase_admin
 from firebase_admin import credentials
 from flask_session import Session
@@ -17,7 +19,8 @@ from flask_session import Session
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+app.url_map.strict_slashes = False
+CORS(app, supports_credentials=True, origins=["http://localhost:8080", "http://localhost:5173"])
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "smartmove-secret-key")
@@ -38,6 +41,8 @@ app.register_blueprint(bookings_bp, url_prefix='/api/bookings')
 app.register_blueprint(expenses_bp, url_prefix='/api/expenses')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(upload_bp, url_prefix='/api/upload')
+app.register_blueprint(pricing_bp, url_prefix='/api/pricing')
+app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
 # MongoDB Setup
 MONGO_URI = os.getenv("MONGO_URI")
