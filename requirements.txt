@@ -3,3 +3,6 @@ pymongo
 dnspython
 flask-cors
 python-dotenv
+firebase-admin
+flask-session
+cloudinary

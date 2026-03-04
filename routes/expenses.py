@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 expenses_bp = Blueprint('expenses', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
-db = client.get_database()
+db = client.get_database('smart_move_transport')
 
 @expenses_bp.route('/', methods=['GET'])
 def get_expenses():

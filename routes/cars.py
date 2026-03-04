@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 cars_bp = Blueprint('cars', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
-db = client.get_database()
+db = client.get_database('smart_move_transport')
 
 @cars_bp.route('/', methods=['GET'])
 def get_cars():

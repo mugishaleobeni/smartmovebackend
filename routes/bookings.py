@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 bookings_bp = Blueprint('bookings', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
-db = client.get_database()
+db = client.get_database('smart_move_transport')
 
 @bookings_bp.route('/', methods=['GET'])
 def get_bookings():
