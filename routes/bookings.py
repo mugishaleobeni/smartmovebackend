@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from bson import ObjectId
 import os
 from pymongo import MongoClient
+from datetime import datetime
 
 bookings_bp = Blueprint('bookings', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -17,8 +18,39 @@ def get_bookings():
 @bookings_bp.route('/', methods=['POST'])
 def create_booking():
     data = request.json
+    
+    # Add creation timestamp if missing
+    if 'created_at' not in data:
+        data['created_at'] = datetime.utcnow().isoformat()
+    
     result = db.bookings.insert_one(data)
-    return jsonify({"id": str(result.inserted_id)}), 201
+    booking_id = str(result.inserted_id)
+    
+    # Create notification for admins
+    try:
+        notif_data = {
+            "title": "New Booking Request",
+            "message": f"New booking for {data.get('client_name')} - Total: RWF {data.get('total_price')}",
+            "type": "booking",
+            "is_read": False,
+            "created_at": datetime.utcnow().isoformat(),
+            "related_id": booking_id
+        }
+        db.notifications.insert_one(notif_data)
+        
+        # Simulate Email to Admin
+        print(f"--- EMAIL SIMULATION ---")
+        print(f"To: admin@smartmove.com")
+        print(f"Subject: New Booking Alert - {data.get('client_name')}")
+        print(f"Body: A new booking has been placed for vehicle ID {data.get('car_id')}.")
+        print(f"Details: {data.get('pickup_location')} -> {data.get('dropoff_location')}")
+        print(f"Total: RWF {data.get('total_price')}")
+        print(f"------------------------")
+        
+    except Exception as e:
+        print(f"Notification error: {str(e)}")
+
+    return jsonify({"id": booking_id}), 201
 
 @bookings_bp.route('/<booking_id>', methods=['PATCH'])
 def update_booking_status(booking_id):

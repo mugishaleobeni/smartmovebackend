@@ -56,6 +56,7 @@ def login():
                 "uid": uid,
                 "email": email,
                 "name": name,
+                "phone": user.get('phone'),
                 "role": user.get('role', 'user')
             }
         }), 200
@@ -97,6 +98,7 @@ def register_manual():
         "user": {
             "email": email,
             "name": name,
+            "phone": phone,
             "role": role
         }
     }), 201
@@ -127,6 +129,7 @@ def login_manual():
             "uid": user.get('firebase_uid'), # Might be None for manual
             "email": email,
             "name": user.get('name'),
+            "phone": user.get('phone'),
             "role": user.get('role', 'user')
         }
     }), 200
@@ -152,6 +155,7 @@ def get_me():
             "uid": user.get('firebase_uid'),
             "email": user.get('email'),
             "name": user.get('name'),
+            "phone": user.get('phone'),
             "role": user.get('role', 'user')
         }), 200
     except Exception as e:

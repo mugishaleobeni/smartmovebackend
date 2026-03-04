@@ -27,3 +27,20 @@ def add_car():
     data = request.json
     result = db.cars.insert_one(data)
     return jsonify({"id": str(result.inserted_id)}), 201
+
+@cars_bp.route('/<car_id>', methods=['PUT', 'PATCH'])
+def update_car(car_id):
+    data = request.json
+    if '_id' in data:
+        del data['_id']
+    result = db.cars.update_one({"_id": ObjectId(car_id)}, {"$set": data})
+    if result.matched_count:
+        return jsonify({"message": "Car updated successfully"})
+    return jsonify({"error": "Car not found"}), 404
+
+@cars_bp.route('/<car_id>', methods=['DELETE'])
+def delete_car(car_id):
+    result = db.cars.delete_one({"_id": ObjectId(car_id)})
+    if result.deleted_count:
+        return jsonify({"message": "Car deleted successfully"})
+    return jsonify({"error": "Car not found"}), 404

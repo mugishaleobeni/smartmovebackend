@@ -20,7 +20,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
-CORS(app, supports_credentials=True, origins=["http://localhost:8080", "http://localhost:5173"])
+CORS(app, supports_credentials=True, origins=["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:8080", "http://127.0.0.1:5173"], allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"], methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "smartmove-secret-key")
