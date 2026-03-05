@@ -23,9 +23,22 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 CORS(app, supports_credentials=True, origins=["http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:8080", "http://127.0.0.1:5173", "https://smartmovetransport.pages.dev"], allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"], methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
 
+# Redis Setup
+import redis
+REDIS_URL = os.getenv("REDIS_URL", "redis://red-d3h36fhr0fns73c205ng:6379")
+
 # Session Configuration
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "smartmove-secret-key")
-app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_TYPE'] = 'redis'
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_REDIS'] = redis.from_url(REDIS_URL)
+
+# Cookie Security for Cross-Site Auth (Cloudflare -> Render)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
 Session(app)
 
 # Firebase Admin Setup
