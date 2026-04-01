@@ -160,3 +160,47 @@ def get_me():
         }), 200
     except Exception as e:
         return jsonify({"authenticated": False, "error": str(e)}), 200
+
+@auth_bp.route('/update-profile', methods=['PUT'])
+def update_profile():
+    if 'user_id' not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.json
+    new_email = data.get('email')
+    new_password = data.get('newPassword')
+    current_password = data.get('currentPassword')
+
+    if not current_password:
+        return jsonify({"error": "Current password is required"}), 400
+
+    try:
+        from bson import ObjectId
+        user = db.users.find_one({"_id": ObjectId(session['user_id'])})
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # Verify current password
+        if 'password' not in user or not check_password_hash(user['password'], current_password):
+            return jsonify({"error": "Invalid current password"}), 400
+
+        update_data = {}
+        if new_email and new_email != user.get('email'):
+            # Check if email is already taken
+            if db.users.find_one({"email": new_email, "_id": {"$ne": ObjectId(session['user_id'])}}):
+                return jsonify({"error": "Email already in use"}), 400
+            update_data["email"] = new_email
+        
+        if new_password:
+            # Re-hash new password
+            update_data["password"] = generate_password_hash(new_password)
+
+        if not update_data:
+            return jsonify({"message": "No changes to update"}), 200
+
+        db.users.update_one({"_id": ObjectId(session['user_id'])}, {"$set": update_data})
+
+        return jsonify({"message": "Profile updated successfully"}), 200
+    except Exception as e:
+        print(f"Update Profile Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
