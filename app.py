@@ -12,6 +12,7 @@ from routes.upload import upload_bp
 from routes.pricing import pricing_bp
 from routes.notifications import notifications_bp
 from routes.search import search_bp
+from routes.newsletter import newsletter_bp
 import firebase_admin
 from firebase_admin import credentials
 from flask_session import Session
@@ -58,6 +59,7 @@ app.register_blueprint(upload_bp, url_prefix='/api/upload')
 app.register_blueprint(pricing_bp, url_prefix='/api/pricing')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(search_bp, url_prefix='/api/search')
+app.register_blueprint(newsletter_bp, url_prefix='/api/newsletter')
 
 # MongoDB Setup
 MONGO_URI = os.getenv("MONGO_URI")
