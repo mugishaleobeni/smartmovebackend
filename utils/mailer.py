@@ -101,6 +101,76 @@ def notify_price_change(car_name, new_price):
     message = f"We have updated our rental rates for the <strong>{car_name}</strong>. You can now book it for as low as <strong>RWF {new_price}</strong> per day. Check out the new deals on our website!"
     broadcast_notification(subject, title, message)
 
-def notify_general_update(title, update_message):
-    subject = f"Smart Move Update: {title}"
-    broadcast_notification(subject, title, update_message)
+def notify_admin_booking(booking_data, car_data=None, conflict=False):
+    """Notifies the admin about a new booking or conflict."""
+    admin_email = "smartmovetransportltd@gmail.com"
+    subject = "ALERT: Double Booking Detected" if conflict else f"New Booking: {booking_data.get('client_name')}"
+    
+    car_name = car_data.get('name', 'N/A') if car_data else 'N/A'
+    car_image = car_data.get('image', '') if car_data else ''
+    
+    conflict_html = """
+    <div style="background-color: #fee2e2; border: 2px solid #ef4444; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+        <h3 style="color: #991b1b; margin-top: 0;">⚠️ DOUBLE BOOKING ALERT</h3>
+        <p style="color: #991b1b;">2 users have selected the same booking date for this vehicle. Please assign an external car if necessary.</p>
+    </div>
+    """ if conflict else ""
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            .container {{ font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; }}
+            .header {{ background-color: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ padding: 20px; line-height: 1.6; color: #333; }}
+            .car-box {{ background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin: 20px 0; }}
+            .car-img {{ width: 100%; max-height: 250px; object-fit: cover; border-radius: 5px; }}
+            .details-grid {{ display: grid; grid-template-cols: 1fr 1fr; gap: 10px; margin-top: 15px; }}
+            .label {{ font-weight: bold; font-size: 12px; color: #64748b; text-transform: uppercase; }}
+            .value {{ font-size: 14px; color: #1e293b; margin-bottom: 8px; }}
+            .footer {{ text-align: center; font-size: 11px; color: #94a3b8; margin-top: 30px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1 style="margin:0; font-size: 20px;">Smart Move Admin Alert</h1>
+            </div>
+            <div class="content">
+                {conflict_html}
+                <p>A new booking request has been received with the following details:</p>
+                
+                <div class="car-box">
+                    {f'<img src="{car_image}" class="car-img" alt="Car Image" />' if car_image else ''}
+                    <h2 style="margin: 10px 0;">{car_name}</h2>
+                    <div class="details-grid">
+                        <div>
+                            <div class="label">Client Name</div>
+                            <div class="value">{booking_data.get('client_name')}</div>
+                            <div class="label">ID Number</div>
+                            <div class="value">{booking_data.get('id_number', 'N/A')}</div>
+                            <div class="label">Phone</div>
+                            <div class="value">{booking_data.get('client_phone')}</div>
+                        </div>
+                        <div>
+                            <div class="label">Booking Date</div>
+                            <div class="value">{booking_data.get('booking_date')}</div>
+                            <div class="label">Pickup</div>
+                            <div class="value">{booking_data.get('pickup_location')}</div>
+                            <div class="label">Total Price</div>
+                            <div class="value">RWF {booking_data.get('total_price', 0):,}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <p>Please log in to the admin dashboard to manage this booking.</p>
+            </div>
+            <div class="footer">
+                <p>This is an automated operational notification from Smart Move Transport Ltd.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    send_email_async(admin_email, subject, html_content)

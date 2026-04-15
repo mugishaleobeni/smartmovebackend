@@ -3,6 +3,7 @@ from bson import ObjectId
 import os
 from pymongo import MongoClient
 from datetime import datetime
+from utils.mailer import notify_admin_booking
 
 bookings_bp = Blueprint('bookings', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -23,43 +24,73 @@ def create_booking():
     if 'created_at' not in data:
         data['created_at'] = datetime.utcnow().isoformat()
     
+    car_id = data.get('car_id')
+    booking_date = data.get('booking_date')
+    
+    # Conflict Detection: check for same car and same date
+    conflict = False
+    if car_id and booking_date:
+        existing = db.bookings.find_one({
+            "car_id": car_id,
+            "booking_date": booking_date,
+            "status": {"$ne": "cancelled"}
+        })
+        if existing:
+            conflict = True
+            data['has_conflict'] = True
+            data['conflict_with'] = str(existing['_id'])
+    
     result = db.bookings.insert_one(data)
     booking_id = str(result.inserted_id)
     
-    # Create notification for admins
+    # Fetch car data for notification enrichment
+    car_data = None
+    if car_id:
+        try:
+            car_data = db.cars.find_one({"_id": ObjectId(car_id)})
+            if car_data:
+                car_data['_id'] = str(car_data['_id'])
+        except Exception:
+            pass
+
+    # Notify admins
     try:
+        notify_admin_booking(data, car_data, conflict)
+        
+        # Internal Notification Record
         notif_data = {
-            "title": "New Booking Request",
-            "message": f"New booking for {data.get('client_name')} - Total: RWF {data.get('total_price')}",
-            "type": "booking",
+            "title": "Double Booking Alert" if conflict else "New Booking Request",
+            "message": f"{'⚠️ CONFLICT: ' if conflict else ''}New booking for {data.get('client_name')} - {car_data.get('name') if car_data else 'Vehicle'}",
+            "type": "conflict" if conflict else "booking",
             "is_read": False,
             "created_at": datetime.utcnow().isoformat(),
             "related_id": booking_id
         }
         db.notifications.insert_one(notif_data)
         
-        # Simulate Email to Admin
-        print(f"--- EMAIL SIMULATION ---")
-        print(f"To: admin@smartmove.com")
-        print(f"Subject: New Booking Alert - {data.get('client_name')}")
-        print(f"Body: A new booking has been placed for vehicle ID {data.get('car_id')}.")
-        print(f"Details: {data.get('pickup_location')} -> {data.get('dropoff_location')}")
-        print(f"Total: RWF {data.get('total_price')}")
-        print(f"------------------------")
-        
     except Exception as e:
         print(f"Notification error: {str(e)}")
 
-    return jsonify({"id": booking_id}), 201
+    return jsonify({"id": booking_id, "conflict": conflict}), 201
 
 @bookings_bp.route('/<booking_id>', methods=['PATCH'])
 def update_booking_status(booking_id):
     data = request.json
-    status = data.get('status')
-    if status:
-        db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
+    
+    # Extract fields from request body
+    update_data = {}
+    if 'status' in data:
+        update_data['status'] = data['status']
+    if 'driver' in data:
+        update_data['driver'] = data['driver']
+    if 'external_car' in data:
+        update_data['external_car'] = data['external_car']
+        
+    if update_data:
+        db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})
         return jsonify({"status": "updated"}), 200
-    return jsonify({"error": "Status missing"}), 400
+    return jsonify({"error": "No valid fields to update"}), 400
+ admissions_update = True
 
 @bookings_bp.route('/<booking_id>', methods=['DELETE'])
 def delete_booking(booking_id):
