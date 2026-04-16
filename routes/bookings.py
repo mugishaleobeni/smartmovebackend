@@ -90,7 +90,6 @@ def update_booking_status(booking_id):
         db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})
         return jsonify({"status": "updated"}), 200
     return jsonify({"error": "No valid fields to update"}), 400
- admissions_update = True
 
 @bookings_bp.route('/<booking_id>', methods=['DELETE'])
 def delete_booking(booking_id):
