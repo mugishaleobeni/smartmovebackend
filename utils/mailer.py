@@ -102,17 +102,25 @@ def notify_price_change(car_name, new_price):
     broadcast_notification(subject, title, message)
 
 def notify_admin_booking(booking_data, car_data=None, conflict=False):
-    """Notifies the admin about a new booking or conflict."""
-    admin_email = "smartmovetransportltd@gmail.com"
-    subject = "ALERT: Double Booking Detected" if conflict else f"New Booking: {booking_data.get('client_name')}"
+    """Notifies all admins about a new booking or conflict."""
+    db = get_db()
+    admins = list(db.users.find({"role": "admin"}, {"email": 1}))
+    admin_emails = [admin['email'] for admin in admins if admin.get('email')]
+    
+    # Fallback to the default admin email if no admins found in DB
+    if not admin_emails:
+        admin_emails = ["smartmovetransportltd@gmail.com"]
+
+    subject = "⚠️ ALERT: Double Booking on Date" if conflict else f"New Booking: {booking_data.get('client_name')}"
     
     car_name = car_data.get('name', 'N/A') if car_data else 'N/A'
     car_image = car_data.get('image', '') if car_data else ''
     
-    conflict_html = """
+    conflict_html = f"""
     <div style="background-color: #fee2e2; border: 2px solid #ef4444; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-        <h3 style="color: #991b1b; margin-top: 0;">⚠️ DOUBLE BOOKING ALERT</h3>
-        <p style="color: #991b1b;">2 users have selected the same booking date for this vehicle. Please assign an external car if necessary.</p>
+        <h3 style="color: #991b1b; margin-top: 0;">⚠️ DATE CONFLICT DETECTED</h3>
+        <p style="color: #991b1b; font-weight: bold;">NOTICE: 2 users have selected the same booking date ({booking_data.get('booking_date')}) in the system.</p>
+        <p style="color: #991b1b;">Please log in to the admin dashboard and consider assigning an external car if your primary fleet is fully booked for this day.</p>
     </div>
     """ if conflict else ""
 
@@ -144,22 +152,22 @@ def notify_admin_booking(booking_data, car_data=None, conflict=False):
                 <div class="car-box">
                     {f'<img src="{car_image}" class="car-img" alt="Car Image" />' if car_image else ''}
                     <h2 style="margin: 10px 0;">{car_name}</h2>
-                    <div class="details-grid">
+                    <div className="details-grid">
                         <div>
-                            <div class="label">Client Name</div>
-                            <div class="value">{booking_data.get('client_name')}</div>
-                            <div class="label">ID Number</div>
-                            <div class="value">{booking_data.get('id_number', 'N/A')}</div>
-                            <div class="label">Phone</div>
-                            <div class="value">{booking_data.get('client_phone')}</div>
+                            <div className="label">Client Name</div>
+                            <div className="value">{booking_data.get('client_name')}</div>
+                            <div className="label">ID Number</div>
+                            <div className="value">{booking_data.get('id_number', 'N/A')}</div>
+                            <div className="label">Phone</div>
+                            <div className="value">{booking_data.get('client_phone')}</div>
                         </div>
                         <div>
-                            <div class="label">Booking Date</div>
-                            <div class="value">{booking_data.get('booking_date')}</div>
-                            <div class="label">Pickup</div>
-                            <div class="value">{booking_data.get('pickup_location')}</div>
-                            <div class="label">Total Price</div>
-                            <div class="value">RWF {booking_data.get('total_price', 0):,}</div>
+                            <div className="label">Booking Date</div>
+                            <div className="value">{booking_data.get('booking_date')}</div>
+                            <div className="label">Pickup</div>
+                            <div className="value">{booking_data.get('pickup_location')}</div>
+                            <div className="label">Total Price</div>
+                            <div className="value">RWF {booking_data.get('total_price', 0):,}</div>
                         </div>
                     </div>
                 </div>
@@ -173,4 +181,30 @@ def notify_admin_booking(booking_data, car_data=None, conflict=False):
     </body>
     </html>
     """
-    send_email_async(admin_email, subject, html_content)
+    for email in admin_emails:
+        send_email_async(email, subject, html_content)
+
+def notify_admin_action(event_type, booking_data):
+    """General notification for admin on status updates or deletions."""
+    db = get_db()
+    admins = list(db.users.find({"role": "admin"}, {"email": 1}))
+    admin_emails = [admin['email'] for admin in admins if admin.get('email')]
+    
+    if not admin_emails:
+        admin_emails = ["smartmovetransportltd@gmail.com"]
+
+    subject = f"Admin Action: {event_type.replace('_', ' ').capitalize()}"
+    
+    html_content = f"""
+    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <h2 style="color: #3b82f6;">Booking {event_type.capitalize()}</h2>
+        <p>A booking has been <strong>{event_type}</strong>.</p>
+        <p><strong>Client:</strong> {booking_data.get('client_name')}</p>
+        <p><strong>Date:</strong> {booking_data.get('booking_date')}</p>
+        <p><strong>Current Status:</strong> {booking_data.get('status', 'N/A')}</p>
+        <hr/>
+        <p style="font-size: 11px; color: #666;">This is an automated log for administrative records.</p>
+    </div>
+    """
+    for email in admin_emails:
+        send_email_async(email, subject, html_content)

@@ -3,7 +3,7 @@ from bson import ObjectId
 import os
 from pymongo import MongoClient
 from datetime import datetime
-from utils.mailer import notify_admin_booking
+from utils.mailer import notify_admin_booking, notify_admin_action
 
 bookings_bp = Blueprint('bookings', __name__)
 client = MongoClient(os.getenv("MONGO_URI"))
@@ -24,14 +24,12 @@ def create_booking():
     if 'created_at' not in data:
         data['created_at'] = datetime.utcnow().isoformat()
     
-    car_id = data.get('car_id')
     booking_date = data.get('booking_date')
     
-    # Conflict Detection: check for same car and same date
+    # Conflict Detection: check for ANY booking on the same date (Global Conflict)
     conflict = False
-    if car_id and booking_date:
+    if booking_date:
         existing = db.bookings.find_one({
-            "car_id": car_id,
             "booking_date": booking_date,
             "status": {"$ne": "cancelled"}
         })
@@ -44,6 +42,7 @@ def create_booking():
     booking_id = str(result.inserted_id)
     
     # Fetch car data for notification enrichment
+    car_id = data.get('car_id')
     car_data = None
     if car_id:
         try:
@@ -88,10 +87,26 @@ def update_booking_status(booking_id):
         
     if update_data:
         db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})
+        
+        # Notify admin of update
+        try:
+            booking = db.bookings.find_one({"_id": ObjectId(booking_id)})
+            if booking:
+                notify_admin_action("updated", booking)
+        except Exception as e:
+            print(f"Update notification error: {e}")
+            
         return jsonify({"status": "updated"}), 200
     return jsonify({"error": "No valid fields to update"}), 400
 
 @bookings_bp.route('/<booking_id>', methods=['DELETE'])
 def delete_booking(booking_id):
+    try:
+        booking = db.bookings.find_one({"_id": ObjectId(booking_id)})
+        if booking:
+            notify_admin_action("deleted", booking)
+    except Exception:
+        pass
+        
     db.bookings.delete_one({"_id": ObjectId(booking_id)})
     return jsonify({"status": "deleted"}), 200
