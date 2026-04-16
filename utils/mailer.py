@@ -152,22 +152,22 @@ def notify_admin_booking(booking_data, car_data=None, conflict=False):
                 <div class="car-box">
                     {f'<img src="{car_image}" class="car-img" alt="Car Image" />' if car_image else ''}
                     <h2 style="margin: 10px 0;">{car_name}</h2>
-                    <div className="details-grid">
+                    <div class="details-grid">
                         <div>
-                            <div className="label">Client Name</div>
-                            <div className="value">{booking_data.get('client_name')}</div>
-                            <div className="label">ID Number</div>
-                            <div className="value">{booking_data.get('id_number', 'N/A')}</div>
-                            <div className="label">Phone</div>
-                            <div className="value">{booking_data.get('client_phone')}</div>
+                            <div class="label">Client Name</div>
+                            <div class="value">{booking_data.get('client_name')}</div>
+                            <div class="label">ID Number</div>
+                            <div class="value">{booking_data.get('id_number', 'N/A')}</div>
+                            <div class="label">Phone</div>
+                            <div class="value">{booking_data.get('client_phone')}</div>
                         </div>
                         <div>
-                            <div className="label">Booking Date</div>
-                            <div className="value">{booking_data.get('booking_date')}</div>
-                            <div className="label">Pickup</div>
-                            <div className="value">{booking_data.get('pickup_location')}</div>
-                            <div className="label">Total Price</div>
-                            <div className="value">RWF {booking_data.get('total_price', 0):,}</div>
+                            <div class="label">Booking Date</div>
+                            <div class="value">{booking_data.get('booking_date')}</div>
+                            <div class="label">Pickup</div>
+                            <div class="value">{booking_data.get('pickup_location')}</div>
+                            <div class="label">Total Price</div>
+                            <div class="value">RWF {booking_data.get('total_price', 0):,}</div>
                         </div>
                     </div>
                 </div>
@@ -208,3 +208,8 @@ def notify_admin_action(event_type, booking_data):
     """
     for email in admin_emails:
         send_email_async(email, subject, html_content)
+
+def notify_general_update(title, message):
+    """General broadcast update for all subscribers."""
+    subject = f"Smart Move Update: {title}"
+    broadcast_notification(subject, title, message)
