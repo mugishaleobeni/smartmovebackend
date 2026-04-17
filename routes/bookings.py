@@ -38,6 +38,13 @@ def create_booking():
             data['has_conflict'] = True
             data['conflict_with'] = str(existing['_id'])
     
+    # Initialize Payment Fields
+    data['payment_status'] = data.get('payment_status', 'pending')
+    data['payment_method'] = data.get('payment_method', 'MTN MoMo')
+    data['paid_amount'] = data.get('paid_amount', 0)
+    data['balance'] = data.get('balance', data.get('total_price', 0))
+    data['confirmed_at'] = None
+    
     result = db.bookings.insert_one(data)
     booking_id = str(result.inserted_id)
     
@@ -80,10 +87,20 @@ def update_booking_status(booking_id):
     update_data = {}
     if 'status' in data:
         update_data['status'] = data['status']
-    if 'driver' in data:
-        update_data['driver'] = data['driver']
     if 'external_car' in data:
         update_data['external_car'] = data['external_car']
+    
+    # Payment Fields
+    if 'payment_status' in data:
+        update_data['payment_status'] = data['payment_status']
+    if 'payment_method' in data:
+        update_data['payment_method'] = data['payment_method']
+    if 'paid_amount' in data:
+        update_data['paid_amount'] = data['paid_amount']
+    if 'balance' in data:
+        update_data['balance'] = data['balance']
+    if 'confirmed_at' in data:
+        update_data['confirmed_at'] = data['confirmed_at']
         
     if update_data:
         db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})

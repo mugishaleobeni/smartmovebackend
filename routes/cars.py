@@ -49,9 +49,18 @@ def update_car(car_id):
     
     if result.matched_count:
         # If price changed, notify subscribers
-        if old_car and 'price_per_day' in data:
-            old_price = old_car.get('price_per_day')
-            new_price = data.get('price_per_day')
+        # We check both 'price_per_day' and 'price' for compatibility with frontend versions
+        pricing_keys = ['price', 'price_per_day']
+        new_price = None
+        for key in pricing_keys:
+            if key in data:
+                new_price = data[key]
+                break
+        
+        if old_car and new_price is not None:
+            # Check old car for either key
+            old_price = old_car.get('price') or old_car.get('price_per_day')
+            
             if str(old_price) != str(new_price):
                 try:
                     notify_price_change(old_car.get('name', 'Car'), new_price)
