@@ -101,6 +101,16 @@ def update_booking_status(booking_id):
         update_data['balance'] = data['balance']
     if 'confirmed_at' in data:
         update_data['confirmed_at'] = data['confirmed_at']
+
+    # New Contract Fields
+    if 'end_date' in data:
+        update_data['end_date'] = data['end_date']
+    if 'driving_license_number' in data:
+        update_data['driving_license_number'] = data['driving_license_number']
+    if 'id_number' in data:
+        update_data['id_number'] = data['id_number']
+    if 'physical_address' in data:
+        update_data['physical_address'] = data['physical_address']
         
     if update_data:
         db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})
