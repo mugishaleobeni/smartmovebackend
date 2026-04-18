@@ -14,6 +14,7 @@ db = client.get_database('smart_move_transport')
 cars_collection = db["cars"]
 chat_collection = db["chat_history"]
 
+# -------------------- CHAT ROUTE --------------------
 @ai_bp.route('/chat', methods=['POST'])
 def chat():
     try:
@@ -29,77 +30,125 @@ def chat():
         if not message:
             return jsonify({"error": "Message is required"}), 400
 
-        # Fetch available cars for context
+        # -------------------- FETCH CARS --------------------
         cars = list(cars_collection.find({"status": {"$ne": "garage"}}))
         cars_info = []
+
         for c in cars:
             car_id = str(c.get("_id"))
             name = c.get("name", "Unknown")
             price = c.get("price_per_day", 0)
-            cars_info.append(f"- {name}: RWF {price}/day. ID to show card: [CAR:{car_id}]")
-        
+
+            cars_info.append(
+                f"- {name}: RWF {price}/day. ID: [CAR:{car_id}]"
+            )
+
         cars_text = "\n".join(cars_info) if cars_info else "No cars available."
 
+        # -------------------- SYSTEM PROMPT --------------------
         system_prompt = f"""You are Smart Move Transport AI.
-You help users with car selection, booking rides, payment guidance, and issue resolution.
-Available cars database:
+
+You help users with:
+- Car selection
+- Booking rides
+- Payment guidance
+- Issue resolution
+
+Available cars:
 {cars_text}
 
 Rules:
-- Be short, clear, and helpful.
-- Ask questions if needed.
-- If recommending a car, MUST include its exact ID string format e.g., [CAR:64df...] so the frontend can render it!
-- Explain payment methods (MTN MoMo, Cash, Code) if asked.
+- Be short, clear, and helpful
+- Ask questions when needed
+- Recommend max 3 cars
+- ALWAYS include car ID like: [CAR:xxxx]
+- Guide user to next step (book, confirm, contact)
+- Explain payment methods: MTN MoMo, Cash, Code
 
 User ID: {user_id}
 """
 
-        # Ensure alternating roles for Gemini
+        # -------------------- BUILD CHAT HISTORY --------------------
         filtered_contents = []
-        last_role = None
-        for msg in history:
-            role = 'model' if msg.get("role") in ["assistant", "model"] else 'user'
-            if role != last_role:  # Prevent consecutive identical roles which crash Gemini
-                filtered_contents.append({"role": role, "parts": [{"text": msg.get("content")}]})
-                last_role = role
-            
-        # Add current message
-        if last_role == 'user':
-            # If the last message was user, we can't add another user message. 
-            # We append it to the last user message instead to fix Gemini format constraint
-            filtered_contents[-1]["parts"][0]["text"] += "\\n" + message
-        else:
-            filtered_contents.append({"role": "user", "parts": [{"text": message}]})
 
+        for msg in history:
+            role = "model" if msg.get("role") in ["assistant", "model"] else "user"
+            filtered_contents.append({
+                "role": role,
+                "parts": [{"text": msg.get("content", "")}]
+            })
+
+        # Add current user message
+        filtered_contents.append({
+            "role": "user",
+            "parts": [{"text": message}]
+        })
+
+        # -------------------- GEMINI PAYLOAD --------------------
         gemini_payload = {
             "system_instruction": {
-                "parts": {"text": system_prompt}
+                "parts": [{"text": system_prompt}]  # ✅ FIXED
             },
             "contents": filtered_contents
         }
 
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
-        
-        response = requests.post(gemini_url, json=gemini_payload, headers={'Content-Type': 'application/json'})
-        
+        # ✅ FIXED URL (v1 instead of v1beta)
+        gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+
+        response = requests.post(
+            gemini_url,
+            json=gemini_payload,
+            headers={"Content-Type": "application/json"}
+        )
+
+        # -------------------- ERROR HANDLING --------------------
         if not response.ok:
             print("Gemini API Error:", response.text)
-            # Returning 200 with error property instead of 502 so Cloudflare doesn't intercept it as a Bad Gateway HTML page
             return jsonify({
                 "error": "Failed to contact AI service",
                 "details": response.text,
                 "status": response.status_code
             }), 200
-            
+
         gemini_data = response.json()
-        reply_text = gemini_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', "I'm sorry, I couldn't process that.")
+
+        # -------------------- SAFE RESPONSE PARSING --------------------
+        candidates = gemini_data.get("candidates", [])
+
+        if not candidates:
+            return jsonify({"reply": "AI did not return a response."}), 200
+
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+
+        reply_text = parts[0].get("text") if parts else "No response from AI."
+
+        # -------------------- SAVE CHAT --------------------
+        if user_id != "guest":
+            chat_collection.update_one(
+                {"userId": user_id},
+                {
+                    "$push": {
+                        "messages": {
+                            "$each": [
+                                {"role": "user", "content": message},
+                                {"role": "assistant", "content": reply_text}
+                            ]
+                        }
+                    },
+                    "$set": {"updatedAt": datetime.utcnow()}
+                },
+                upsert=True
+            )
 
         return jsonify({"reply": reply_text}), 200
 
     except Exception as e:
-        print("Chat API unhandled error", e)
+        print("Chat API unhandled error:", e)
         return jsonify({"error": str(e)}), 500
 
+
+# -------------------- SAVE HISTORY --------------------
 @ai_bp.route('/chat/history', methods=['POST'])
 def save_history():
     try:
@@ -112,14 +161,22 @@ def save_history():
 
         chat_collection.update_one(
             {"userId": user_id},
-            {"$set": {"messages": messages, "updatedAt": datetime.utcnow()}},
+            {
+                "$set": {
+                    "messages": messages,
+                    "updatedAt": datetime.utcnow()
+                }
+            },
             upsert=True
         )
 
         return jsonify({"message": "History saved successfully"}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# -------------------- GET HISTORY --------------------
 @ai_bp.route('/chat/history/<user_id>', methods=['GET'])
 def get_history(user_id):
     try:
@@ -127,8 +184,11 @@ def get_history(user_id):
             return jsonify({"messages": []}), 200
 
         history = chat_collection.find_one({"userId": user_id})
+
         if history:
             return jsonify({"messages": history.get("messages", [])}), 200
+
         return jsonify({"messages": []}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
