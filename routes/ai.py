@@ -78,7 +78,7 @@ User ID: {user_id}
             "contents": filtered_contents
         }
 
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
         
         response = requests.post(gemini_url, json=gemini_payload, headers={'Content-Type': 'application/json'})
         
