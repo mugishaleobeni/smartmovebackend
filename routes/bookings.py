@@ -111,6 +111,8 @@ def update_booking_status(booking_id):
         update_data['id_number'] = data['id_number']
     if 'physical_address' in data:
         update_data['physical_address'] = data['physical_address']
+    if 'client_surname' in data:
+        update_data['client_surname'] = data['client_surname']
         
     if update_data:
         db.bookings.update_one({"_id": ObjectId(booking_id)}, {"$set": update_data})

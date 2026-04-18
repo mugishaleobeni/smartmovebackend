@@ -101,13 +101,26 @@ def notify_price_change(car_name, new_price):
     message = f"We have updated our rental rates for the <strong>{car_name}</strong>. You can now book it for as low as <strong>RWF {new_price}</strong> per day. Check out the new deals on our website!"
     broadcast_notification(subject, title, message)
 
+def get_admin_emails():
+    """Helper to get all admin emails from DB and Settings."""
+    db = get_db()
+    # 1. Get emails from users with admin role
+    admins = list(db.users.find({"role": "admin"}, {"email": 1}))
+    admin_emails = {admin['email'] for admin in admins if admin.get('email')}
+    
+    # 2. Get emails from dynamic settings
+    settings = db.settings.find_one({"key": "notification_emails"})
+    if settings and settings.get('value'):
+        extra_emails = [e.strip() for e in settings['value'].split(',') if e.strip()]
+        admin_emails.update(extra_emails)
+        
+    return list(admin_emails)
+
 def notify_admin_booking(booking_data, car_data=None, conflict=False):
     """Notifies all admins about a new booking or conflict."""
-    db = get_db()
-    admins = list(db.users.find({"role": "admin"}, {"email": 1}))
-    admin_emails = [admin['email'] for admin in admins if admin.get('email')]
+    admin_emails = get_admin_emails()
     
-    # Fallback to the default admin email if no admins found in DB
+    # Fallback only if absolutely no emails found anywhere
     if not admin_emails:
         admin_emails = ["smartmovetransportltd@gmail.com"]
 
@@ -186,9 +199,7 @@ def notify_admin_booking(booking_data, car_data=None, conflict=False):
 
 def notify_admin_action(event_type, booking_data):
     """General notification for admin on status updates or deletions."""
-    db = get_db()
-    admins = list(db.users.find({"role": "admin"}, {"email": 1}))
-    admin_emails = [admin['email'] for admin in admins if admin.get('email')]
+    admin_emails = get_admin_emails()
     
     if not admin_emails:
         admin_emails = ["smartmovetransportltd@gmail.com"]
