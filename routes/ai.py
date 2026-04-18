@@ -93,7 +93,7 @@ User ID: {user_id}
         }
 
         # ✅ FIXED URL (v1 instead of v1beta)
-        gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
+        gemini_url =  f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
         response = requests.post(
             gemini_url,
