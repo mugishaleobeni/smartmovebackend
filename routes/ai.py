@@ -84,16 +84,20 @@ User ID: {user_id}
             "parts": [{"text": message}]
         })
 
-        # -------------------- GEMINI PAYLOAD --------------------
+        # -------------------- GEMINI PAYLOAD (FIXED) --------------------
         gemini_payload = {
-            "system_instruction": {
-                "parts": [{"text": system_prompt}]  # ✅ FIXED
-            },
-            "contents": filtered_contents
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": system_prompt}]
+                }
+            ] + filtered_contents
         }
 
-        # ✅ FIXED URL (v1 instead of v1beta)
-        gemini_url =  f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # ✅ Correct endpoint
+        gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+
+        print("Gemini URL:", gemini_url)  # Debug log
 
         response = requests.post(
             gemini_url,
