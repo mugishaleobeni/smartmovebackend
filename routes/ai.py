@@ -54,21 +54,28 @@ Rules:
 User ID: {user_id}
 """
 
-        contents = []
-        
-        # Add history
+        # Ensure alternating roles for Gemini
+        filtered_contents = []
+        last_role = None
         for msg in history:
             role = 'model' if msg.get("role") in ["assistant", "model"] else 'user'
-            contents.append({"role": role, "parts": [{"text": msg.get("content")}]})
+            if role != last_role:  # Prevent consecutive identical roles which crash Gemini
+                filtered_contents.append({"role": role, "parts": [{"text": msg.get("content")}]})
+                last_role = role
             
         # Add current message
-        contents.append({"role": "user", "parts": [{"text": message}]})
+        if last_role == 'user':
+            # If the last message was user, we can't add another user message. 
+            # We append it to the last user message instead to fix Gemini format constraint
+            filtered_contents[-1]["parts"][0]["text"] += "\\n" + message
+        else:
+            filtered_contents.append({"role": "user", "parts": [{"text": message}]})
 
         gemini_payload = {
-            "systemInstruction": {
-                "parts": [{"text": system_prompt}]
+            "system_instruction": {
+                "parts": {"text": system_prompt}
             },
-            "contents": contents
+            "contents": filtered_contents
         }
 
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
@@ -77,7 +84,12 @@ User ID: {user_id}
         
         if not response.ok:
             print("Gemini API Error:", response.text)
-            return jsonify({"error": "Failed to contact AI service"}), 502
+            # Returning 200 with error property instead of 502 so Cloudflare doesn't intercept it as a Bad Gateway HTML page
+            return jsonify({
+                "error": "Failed to contact AI service",
+                "details": response.text,
+                "status": response.status_code
+            }), 200
             
         gemini_data = response.json()
         reply_text = gemini_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', "I'm sorry, I couldn't process that.")
