@@ -15,6 +15,7 @@ from routes.search import search_bp
 from routes.newsletter import newsletter_bp
 from routes.settings import settings_bp
 from routes.ai import ai_bp
+from routes.files import files_bp
 import firebase_admin
 from firebase_admin import credentials
 from flask_session import Session
@@ -64,6 +65,7 @@ app.register_blueprint(search_bp, url_prefix='/api/search')
 app.register_blueprint(newsletter_bp, url_prefix='/api/newsletter')
 app.register_blueprint(settings_bp, url_prefix='/api/settings')
 app.register_blueprint(ai_bp, url_prefix='/api/ai')
+app.register_blueprint(files_bp, url_prefix='/api/files')
 
 # MongoDB Setup
 MONGO_URI = os.getenv("MONGO_URI")
